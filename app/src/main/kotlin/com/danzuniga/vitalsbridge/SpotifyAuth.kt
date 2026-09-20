@@ -15,7 +15,7 @@ import java.security.SecureRandom
  *  needed, safe to ship inside the app. Set SpotifyConfig.CLIENT_ID to your
  *  own app's Client ID from developer.spotify.com/dashboard. */
 object SpotifyConfig {
-    const val CLIENT_ID = "PUT_YOUR_SPOTIFY_CLIENT_ID_HERE"
+    const val CLIENT_ID = "3c28af16a4954660b057232bfef7ea27"
     const val REDIRECT_URI = "galaxyvitalsbridge://callback"
     const val SCOPE = "user-read-currently-playing"
 }
