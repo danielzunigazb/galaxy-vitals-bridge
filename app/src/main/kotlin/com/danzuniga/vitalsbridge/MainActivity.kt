@@ -1,6 +1,8 @@
 package com.danzuniga.vitalsbridge
 
 import android.app.Activity
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -13,33 +15,64 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
+    private val currentIntentState = mutableStateOf<Intent?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         VitalsSyncWorker.schedule(applicationContext)
+        currentIntentState.value = intent
 
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    VitalsBridgeScreen(this)
+                    VitalsBridgeScreen(this, currentIntentState)
                 }
             }
         }
     }
+
+    // Spotify's OAuth redirect (galaxyvitalsbridge://callback?code=...) lands
+    // here since MainActivity is launchMode="singleTask".
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        currentIntentState.value = intent
+    }
 }
 
 @Composable
-private fun VitalsBridgeScreen(activity: Activity) {
+private fun VitalsBridgeScreen(activity: Activity, intentState: MutableState<Intent?>) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val tokenStore = remember { TokenStore(context) }
     val samsungHealth = remember { SamsungHealthRepository(context) }
+    val spotifyAuth = remember { SpotifyAuth(tokenStore) }
     val scope = rememberCoroutineScope()
 
     var token by remember { mutableStateOf(tokenStore.githubToken ?: "") }
     var permissionsGranted by remember { mutableStateOf<Boolean?>(null) }
+    var spotifyConnected by remember { mutableStateOf(spotifyAuth.isConnected()) }
     var status by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         permissionsGranted = samsungHealth.hasPermission()
+    }
+
+    // Consumes the OAuth redirect once, whenever a new one comes in.
+    LaunchedEffect(intentState.value) {
+        val uri = intentState.value?.data ?: return@LaunchedEffect
+        if (uri.scheme == "galaxyvitalsbridge") {
+            val code = uri.getQueryParameter("code")
+            status = when {
+                code != null -> {
+                    val result = spotifyAuth.exchangeCode(code)
+                    spotifyConnected = result.isSuccess
+                    if (result.isSuccess) "Spotify conectado" else "Error conectando Spotify: ${result.exceptionOrNull()?.message}"
+                }
+                uri.getQueryParameter("error") != null -> "Spotify: ${uri.getQueryParameter("error")}"
+                else -> status
+            }
+        }
+        intentState.value = null // consumed, don't reprocess on recomposition
     }
 
     Column(
@@ -80,6 +113,16 @@ private fun VitalsBridgeScreen(activity: Activity) {
 
         HorizontalDivider()
 
+        Text("Spotify: ${if (spotifyConnected) "conectado" else "no conectado"}")
+        Button(onClick = {
+            val url = spotifyAuth.buildAuthUrl()
+            activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        }) {
+            Text(if (spotifyConnected) "Reconectar Spotify" else "Conectar Spotify")
+        }
+
+        HorizontalDivider()
+
         Button(onClick = {
             scope.launch {
                 status = "Sincronizando..."
@@ -89,12 +132,14 @@ private fun VitalsBridgeScreen(activity: Activity) {
                     status = "Falta el token"
                     return@launch
                 }
-                val result = GitHubPublisher(currentToken).publish(snapshot)
+                val nowPlaying = if (spotifyAuth.isConnected()) SpotifyRepository(spotifyAuth).currentlyPlaying() else null
+                val result = GitHubPublisher(currentToken).publish(snapshot, nowPlaying)
                 status = if (result.isSuccess) {
                     "Publicado: ${snapshot.heartRateBpm ?: "sin lectura"} bpm, " +
                         "${snapshot.stepsToday ?: 0} pasos, " +
                         "SpO2 ${snapshot.oxygenSaturationPct ?: "-"}%, " +
-                        "sueño ${snapshot.sleepDurationMinutes?.let { "${it}min" } ?: "-"}"
+                        "sueño ${snapshot.sleepDurationMinutes?.let { "${it}min" } ?: "-"}" +
+                        (nowPlaying?.takeIf { it.isPlaying }?.let { ", sonando: ${it.track}" } ?: "")
                 } else {
                     "Error: ${result.exceptionOrNull()?.message}"
                 }

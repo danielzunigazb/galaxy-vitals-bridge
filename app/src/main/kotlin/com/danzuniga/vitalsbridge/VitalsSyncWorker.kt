@@ -13,7 +13,8 @@ import java.util.concurrent.TimeUnit
 class VitalsSyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        val token = TokenStore(applicationContext).githubToken
+        val tokenStore = TokenStore(applicationContext)
+        val token = tokenStore.githubToken
             ?: return Result.failure() // nothing to publish with
 
         val samsungHealth = SamsungHealthRepository(applicationContext)
@@ -21,8 +22,11 @@ class VitalsSyncWorker(context: Context, params: WorkerParameters) : CoroutineWo
             return Result.failure()
         }
 
+        val spotifyAuth = SpotifyAuth(tokenStore)
+        val nowPlaying = if (spotifyAuth.isConnected()) SpotifyRepository(spotifyAuth).currentlyPlaying() else null
+
         val snapshot = samsungHealth.readVitalsSnapshot()
-        val outcome = GitHubPublisher(token).publish(snapshot)
+        val outcome = GitHubPublisher(token).publish(snapshot, nowPlaying)
         return if (outcome.isSuccess) Result.success() else Result.retry()
     }
 

@@ -20,7 +20,7 @@ class GitHubPublisher(private val token: String) {
         .readTimeout(10, TimeUnit.SECONDS)
         .build()
 
-    suspend fun publish(snapshot: VitalsSnapshot): Result<Unit> = withContext(Dispatchers.IO) {
+    suspend fun publish(snapshot: VitalsSnapshot, nowPlaying: NowPlaying? = null): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             val sha = currentSha()
 
@@ -43,6 +43,21 @@ class GitHubPublisher(private val token: String) {
                 .put("battery_pct", JSONObject.NULL)
                 .put("updated_at", Instant.now().toString())
                 .put("source", "galaxy-fit3-samsunghealth")
+
+            // Only set when we actually have a Spotify connection to ask — if
+            // it's not connected yet this key is simply left out, same as any
+            // other not-yet-available field.
+            if (nowPlaying != null) {
+                vitals.put("now_playing", JSONObject()
+                    .put("is_playing", nowPlaying.isPlaying)
+                    .put("track", nowPlaying.track ?: JSONObject.NULL)
+                    .put("artists", nowPlaying.artists ?: JSONObject.NULL)
+                    .put("album", nowPlaying.album ?: JSONObject.NULL)
+                    .put("cover_url", nowPlaying.coverUrl ?: JSONObject.NULL)
+                    .put("url", nowPlaying.url ?: JSONObject.NULL)
+                    .put("updated_at", Instant.now().toString())
+                )
+            }
 
             val body = JSONObject()
                 .put("message", "vitals @ ${vitals.getString("updated_at")}")

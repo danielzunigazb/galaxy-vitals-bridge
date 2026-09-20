@@ -27,9 +27,12 @@ Health por IPC, sin depender de ese puente roto.
   `sync_vitals.py`, sobre `danielzunigazb/portfolio`, rama `data`.
 - `VitalsSyncWorker.kt` — `WorkManager` periódico (cada 15 min, el mínimo que
   permite Android para trabajo periódico).
-- `TokenStore.kt` — el token de GitHub se guarda con `EncryptedSharedPreferences`,
-  solo en este dispositivo. Nunca se commitea ni se manda a ningún lado más
-  que a la API de GitHub.
+- `TokenStore.kt` — el token de GitHub y los tokens de Spotify se guardan con
+  `EncryptedSharedPreferences`, solo en este dispositivo. Nunca se commitean
+  ni se mandan a ningún lado más que a sus respectivas APIs.
+- `SpotifyAuth.kt` / `SpotifyRepository.kt` — OAuth (Authorization Code +
+  PKCE, sin client secret) y lectura de "currently playing". Corre en el
+  propio dispositivo, sin depender de ningún servicio externo.
 - `app/libs/samsung-health-data-api-1.1.0.aar` — el SDK de Samsung, no está
   en Maven Central así que va commiteado directo en el repo.
 
@@ -65,6 +68,32 @@ no esté registrado como partner ante Samsung (ver Notas):
 3. Aparece **"Developer mode (Samsung Health Data SDK)"** → tocalo → aceptá
    el aviso → activá **"Developer Mode for Data Read"**.
 
+## Conectar Spotify (now playing)
+
+Opcional — sin esto, `now_playing` simplemente no aparece en el JSON y
+`/status` muestra "nada sonando ahora". Con esto conectado, es permanente:
+corre en tu propio celular, no depende de ninguna sesión de Claude ni de
+ningún cron externo.
+
+1. Andá a [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard),
+   entrá con tu cuenta de Spotify → **Create app**.
+2. Nombre/descripción: lo que quieras. **Redirect URI**: pegá exactamente
+   `galaxyvitalsbridge://callback`. API a usar: **Web API**. Guardá.
+3. En la página del app, copiá el **Client ID** y pegalo en
+   `SpotifyAuth.kt`, reemplazando `SpotifyConfig.CLIENT_ID`.
+4. Los apps nuevos de Spotify arrancan en **Development Mode**, que solo
+   deja loguearse a usuarios explícitamente agregados (hasta 25). Si al
+   tocar "Conectar Spotify" el login te rebota, andá a **Settings → User
+   Management** en el dashboard del app y agregá tu propio email de
+   Spotify.
+5. Corré la app, tocá **Conectar Spotify**, iniciá sesión/aceptá el
+   permiso (`user-read-currently-playing`) — te manda de vuelta a la app
+   sola. Tocá "Sync ahora" para confirmar.
+
+El `access_token` dura 1h y se refresca solo con el `refresh_token` en cada
+sync — no hay que volver a loguearse a mano salvo que revoques el acceso
+desde tu cuenta de Spotify.
+
 ## JSON publicado
 
 ```json
@@ -78,14 +107,24 @@ no esté registrado como partner ante Samsung (ver Notas):
   "last_exercise": { "type": "RUNNING", "duration_minutes": 32, "calories": 210.5, "mean_heart_rate_bpm": 142 },
   "battery_pct": null,
   "updated_at": "2026-09-20T19:58:45Z",
-  "source": "galaxy-fit3-samsunghealth"
+  "source": "galaxy-fit3-samsunghealth",
+  "now_playing": {
+    "is_playing": true,
+    "track": "WAQI",
+    "artists": "GROSSOMODDO, Montaigne",
+    "album": "WAQI",
+    "cover_url": "https://i.scdn.co/image/...",
+    "url": "https://open.spotify.com/track/...",
+    "updated_at": "2026-09-20T19:58:45Z"
+  }
 }
 ```
 
 Cualquier campo sin dato reciente va en `null` (o `last_exercise` completo en
 `null` si no hay ejercicio registrado en la última semana). `battery_pct`
 siempre es `null` — no es un dato de salud/fitness, ningún SDK de Health lo
-expone (la vía BLE directa de `sync_vitals.py` sí puede traerlo).
+expone (la vía BLE directa de `sync_vitals.py` sí puede traerlo). `now_playing`
+solo aparece si Spotify está conectado (ver abajo) — si no, se omite entero.
 
 ## Notas
 
