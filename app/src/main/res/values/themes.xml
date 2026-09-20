@@ -1,0 +1,6 @@
+<resources>
+    <!-- Pure-Compose app: this only controls the window background before
+         Compose's own MaterialTheme takes over, so it parents a plain
+         platform theme instead of pulling in com.google.android.material. -->
+    <style name="Theme.VitalsBridge" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
