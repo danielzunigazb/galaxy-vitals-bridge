@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#1c1926"
+    android:padding="12dp">
+
+    <TextView
+        android:id="@+id/widget_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="GALAXY VITALS"
+        android:textColor="#7a7591"
+        android:textSize="10sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/widget_heart"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="♥ -- bpm"
+        android:textColor="#f7f4ff"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/widget_steps"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="👟 -- pasos"
+        android:textColor="#b3aec7"
+        android:textSize="12sp" />
+
+    <TextView
+        android:id="@+id/widget_zone"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="📍 --"
+        android:textColor="#b3aec7"
+        android:textSize="12sp" />
+
+    <TextView
+        android:id="@+id/widget_updated"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="sin datos todavía"
+        android:textColor="#7a7591"
+        android:textSize="9sp" />
+
+    <Button
+        android:id="@+id/widget_refresh_btn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:minHeight="0dp"
+        android:text="SYNC AHORA"
+        android:textSize="10sp"
+        android:textColor="#0a0a0f"
+        android:background="#ff2d78" />
+</LinearLayout>

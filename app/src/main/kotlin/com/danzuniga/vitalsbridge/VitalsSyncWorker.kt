@@ -28,6 +28,12 @@ class VitalsSyncWorker(context: Context, params: WorkerParameters) : CoroutineWo
 
         val snapshot = samsungHealth.readVitalsSnapshot()
         val outcome = GitHubPublisher(token).publish(snapshot, nowPlaying, locationZone)
+        if (outcome.isSuccess) {
+            WidgetStateStore(applicationContext).save(
+                snapshot.heartRateBpm, snapshot.stepsToday, locationZone, java.time.Instant.now().toString(),
+            )
+            VitalsWidgetProvider.updateAllWidgets(applicationContext)
+        }
         return if (outcome.isSuccess) Result.success() else Result.retry()
     }
 

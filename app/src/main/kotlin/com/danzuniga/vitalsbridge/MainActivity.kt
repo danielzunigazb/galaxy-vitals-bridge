@@ -193,6 +193,12 @@ private fun VitalsBridgeScreen(activity: Activity, intentState: MutableState<Int
                 val nowPlaying = if (spotifyAuth.isConnected()) SpotifyRepository(spotifyAuth).currentlyPlaying() else null
                 val zone = locationZones.currentZone()
                 val result = GitHubPublisher(currentToken).publish(snapshot, nowPlaying, zone)
+                if (result.isSuccess) {
+                    WidgetStateStore(context).save(
+                        snapshot.heartRateBpm, snapshot.stepsToday, zone, java.time.Instant.now().toString(),
+                    )
+                    VitalsWidgetProvider.updateAllWidgets(context)
+                }
                 status = if (result.isSuccess) {
                     "Publicado: ${snapshot.heartRateBpm ?: "sin lectura"} bpm, " +
                         "${snapshot.stepsToday ?: 0} pasos, " +
