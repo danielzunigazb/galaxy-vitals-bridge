@@ -33,6 +33,10 @@ Health por IPC, sin depender de ese puente roto.
 - `SpotifyAuth.kt` / `SpotifyRepository.kt` — OAuth (Authorization Code +
   PKCE, sin client secret) y lectura de "currently playing". Corre en el
   propio dispositivo, sin depender de ningún servicio externo.
+- `LocationZoneRepository.kt` — clasifica la ubicación actual como
+  `"casa"` / `"escuela"` / `"afuera"` comparando contra dos puntos que se
+  guardan a mano desde la app (radio de 150m). Las coordenadas viven solo
+  en `SharedPreferences` locales — nunca se publica ni un lat/lng.
 - `app/libs/samsung-health-data-api-1.1.0.aar` — el SDK de Samsung, no está
   en Maven Central así que va commiteado directo en el repo.
 
@@ -94,6 +98,23 @@ El `access_token` dura 1h y se refresca solo con el `refresh_token` en cada
 sync — no hay que volver a loguearse a mano salvo que revoques el acceso
 desde tu cuenta de Spotify.
 
+## Configurar zonas de ubicación (casa/escuela/afuera)
+
+Opcional — sin esto, `location_zone` siempre publica `"afuera"`. La app
+**nunca** manda coordenadas: solo la categoría, calculada en el propio
+teléfono.
+
+1. Tocá **"Pedir permiso de ubicación"** y aceptá los dos diálogos
+   (ubicación normal, y después "Permitir todo el tiempo" para que
+   funcione durante el sync automático en background — en Android 11+
+   puede mandar a Ajustes en vez de mostrar el diálogo directo).
+2. Parado en tu casa: tocá **"Guardar como Casa"**.
+3. Parado en tu escuela: tocá **"Guardar como Escuela"**.
+
+Listo — `VitalsSyncWorker` calcula la zona en cada sync comparando la
+ubicación actual contra esos dos puntos (radio de 150m) y publica solo el
+resultado (`"casa"` / `"escuela"` / `"afuera"`).
+
 ## JSON publicado
 
 ```json
@@ -106,6 +127,7 @@ desde tu cuenta de Spotify.
   "sleep_score": 64,
   "last_exercise": { "type": "RUNNING", "duration_minutes": 32, "calories": 210.5, "mean_heart_rate_bpm": 142 },
   "battery_pct": null,
+  "location_zone": "casa",
   "updated_at": "2026-09-20T19:58:45Z",
   "source": "galaxy-fit3-samsunghealth",
   "now_playing": {
