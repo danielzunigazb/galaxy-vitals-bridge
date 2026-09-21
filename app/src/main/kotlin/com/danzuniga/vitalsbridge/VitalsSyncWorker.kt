@@ -24,9 +24,10 @@ class VitalsSyncWorker(context: Context, params: WorkerParameters) : CoroutineWo
 
         val spotifyAuth = SpotifyAuth(tokenStore)
         val nowPlaying = if (spotifyAuth.isConnected()) SpotifyRepository(spotifyAuth).currentlyPlaying() else null
+        val locationZone = LocationZoneRepository(applicationContext).currentZone()
 
         val snapshot = samsungHealth.readVitalsSnapshot()
-        val outcome = GitHubPublisher(token).publish(snapshot, nowPlaying)
+        val outcome = GitHubPublisher(token).publish(snapshot, nowPlaying, locationZone)
         return if (outcome.isSuccess) Result.success() else Result.retry()
     }
 

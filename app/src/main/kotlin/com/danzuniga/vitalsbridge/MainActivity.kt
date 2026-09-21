@@ -1,12 +1,17 @@
 package com.danzuniga.vitalsbridge
 
+import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -46,12 +51,28 @@ private fun VitalsBridgeScreen(activity: Activity, intentState: MutableState<Int
     val tokenStore = remember { TokenStore(context) }
     val samsungHealth = remember { SamsungHealthRepository(context) }
     val spotifyAuth = remember { SpotifyAuth(tokenStore) }
+    val locationZones = remember { LocationZoneRepository(context) }
     val scope = rememberCoroutineScope()
 
     var token by remember { mutableStateOf(tokenStore.githubToken ?: "") }
     var permissionsGranted by remember { mutableStateOf<Boolean?>(null) }
     var spotifyConnected by remember { mutableStateOf(spotifyAuth.isConnected()) }
+    var locationPermission by remember { mutableStateOf<Boolean?>(null) }
     var status by remember { mutableStateOf("") }
+
+    val backgroundLocationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        status = if (granted) "Ubicación en 2do plano OK" else {
+            "Sin ubicación en 2do plano — activala a mano en Ajustes si el sync automático no la detecta"
+        }
+    }
+    val coarseLocationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        locationPermission = granted
+        if (granted) {
+            backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        } else {
+            status = "Permiso de ubicación denegado"
+        }
+    }
 
     LaunchedEffect(Unit) {
         permissionsGranted = samsungHealth.hasPermission()
@@ -78,7 +99,8 @@ private fun VitalsBridgeScreen(activity: Activity, intentState: MutableState<Int
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(20.dp),
+            .padding(20.dp)
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Text("Galaxy Vitals Bridge", style = MaterialTheme.typography.headlineSmall)
@@ -123,6 +145,42 @@ private fun VitalsBridgeScreen(activity: Activity, intentState: MutableState<Int
 
         HorizontalDivider()
 
+        Text(
+            "Ubicación: ${locationPermission?.let { if (it) "permiso OK" else "sin permiso" } ?: "sin pedir"} · " +
+                "casa ${if (locationZones.isConfigured(LocationZoneRepository.Zone.CASA)) "guardada" else "sin guardar"} · " +
+                "escuela ${if (locationZones.isConfigured(LocationZoneRepository.Zone.ESCUELA)) "guardada" else "sin guardar"}"
+        )
+        Text(
+            "Nunca se publican coordenadas — solo \"casa\"/\"escuela\"/\"afuera\", calculado en el " +
+                "teléfono. Guardá cada zona parado ahí; el punto de referencia se queda solo en este dispositivo.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Button(onClick = { coarseLocationLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION) }) {
+            Text("Pedir permiso de ubicación")
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Button(onClick = {
+                status = if (locationZones.saveCurrentAs(LocationZoneRepository.Zone.CASA)) {
+                    "Casa guardada acá"
+                } else {
+                    "Sin ubicación disponible todavía — pedí el permiso primero"
+                }
+            }) {
+                Text("Guardar como Casa")
+            }
+            Button(onClick = {
+                status = if (locationZones.saveCurrentAs(LocationZoneRepository.Zone.ESCUELA)) {
+                    "Escuela guardada acá"
+                } else {
+                    "Sin ubicación disponible todavía — pedí el permiso primero"
+                }
+            }) {
+                Text("Guardar como Escuela")
+            }
+        }
+
+        HorizontalDivider()
+
         Button(onClick = {
             scope.launch {
                 status = "Sincronizando..."
@@ -133,12 +191,14 @@ private fun VitalsBridgeScreen(activity: Activity, intentState: MutableState<Int
                     return@launch
                 }
                 val nowPlaying = if (spotifyAuth.isConnected()) SpotifyRepository(spotifyAuth).currentlyPlaying() else null
-                val result = GitHubPublisher(currentToken).publish(snapshot, nowPlaying)
+                val zone = locationZones.currentZone()
+                val result = GitHubPublisher(currentToken).publish(snapshot, nowPlaying, zone)
                 status = if (result.isSuccess) {
                     "Publicado: ${snapshot.heartRateBpm ?: "sin lectura"} bpm, " +
                         "${snapshot.stepsToday ?: 0} pasos, " +
                         "SpO2 ${snapshot.oxygenSaturationPct ?: "-"}%, " +
-                        "sueño ${snapshot.sleepDurationMinutes?.let { "${it}min" } ?: "-"}" +
+                        "sueño ${snapshot.sleepDurationMinutes?.let { "${it}min" } ?: "-"}, " +
+                        "zona: $zone" +
                         (nowPlaying?.takeIf { it.isPlaying }?.let { ", sonando: ${it.track}" } ?: "")
                 } else {
                     "Error: ${result.exceptionOrNull()?.message}"

@@ -20,7 +20,11 @@ class GitHubPublisher(private val token: String) {
         .readTimeout(10, TimeUnit.SECONDS)
         .build()
 
-    suspend fun publish(snapshot: VitalsSnapshot, nowPlaying: NowPlaying? = null): Result<Unit> = withContext(Dispatchers.IO) {
+    suspend fun publish(
+        snapshot: VitalsSnapshot,
+        nowPlaying: NowPlaying? = null,
+        locationZone: String? = null,
+    ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             val sha = currentSha()
 
@@ -41,6 +45,9 @@ class GitHubPublisher(private val token: String) {
                         .put("mean_heart_rate_bpm", it.meanHeartRateBpm ?: JSONObject.NULL)
                 } ?: JSONObject.NULL)
                 .put("battery_pct", JSONObject.NULL)
+                // Coarse category only ("casa" / "escuela" / "afuera") — never raw
+                // coordinates. The reference points never leave the device.
+                .put("location_zone", locationZone ?: JSONObject.NULL)
                 .put("updated_at", Instant.now().toString())
                 .put("source", "galaxy-fit3-samsunghealth")
 
