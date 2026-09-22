@@ -65,7 +65,7 @@ private fun VitalsBridgeScreen(activity: Activity, intentState: MutableState<Int
             "Sin ubicación en 2do plano — activala a mano en Ajustes si el sync automático no la detecta"
         }
     }
-    val coarseLocationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+    val fineLocationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         locationPermission = granted
         if (granted) {
             backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
@@ -155,24 +155,28 @@ private fun VitalsBridgeScreen(activity: Activity, intentState: MutableState<Int
                 "teléfono. Guardá cada zona parado ahí; el punto de referencia se queda solo en este dispositivo.",
             style = MaterialTheme.typography.bodySmall,
         )
-        Button(onClick = { coarseLocationLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION) }) {
+        Button(onClick = { fineLocationLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION) }) {
             Text("Pedir permiso de ubicación")
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Button(onClick = {
-                status = if (locationZones.saveCurrentAs(LocationZoneRepository.Zone.CASA)) {
-                    "Casa guardada acá"
-                } else {
-                    "Sin ubicación disponible todavía — pedí el permiso primero"
+                scope.launch {
+                    status = if (locationZones.saveCurrentAs(LocationZoneRepository.Zone.CASA)) {
+                        "Casa guardada acá"
+                    } else {
+                        "Sin ubicación disponible todavía — pedí el permiso primero"
+                    }
                 }
             }) {
                 Text("Guardar como Casa")
             }
             Button(onClick = {
-                status = if (locationZones.saveCurrentAs(LocationZoneRepository.Zone.ESCUELA)) {
-                    "Escuela guardada acá"
-                } else {
-                    "Sin ubicación disponible todavía — pedí el permiso primero"
+                scope.launch {
+                    status = if (locationZones.saveCurrentAs(LocationZoneRepository.Zone.ESCUELA)) {
+                        "Escuela guardada acá"
+                    } else {
+                        "Sin ubicación disponible todavía — pedí el permiso primero"
+                    }
                 }
             }) {
                 Text("Guardar como Escuela")

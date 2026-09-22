@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId = "com.danzuniga.vitalsbridge"
-        minSdk = 29 // required by the Samsung Health Data SDK
+        minSdk = 30 // LocationManager.getCurrentLocation() requires API 30+
         targetSdk = 34
         versionCode = 1
         versionName = "0.1"
