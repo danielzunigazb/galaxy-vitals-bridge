@@ -13,6 +13,7 @@ import com.samsung.android.sdk.health.data.request.DataType
 import com.samsung.android.sdk.health.data.request.DataTypes
 import com.samsung.android.sdk.health.data.request.InstantTimeFilter
 import com.samsung.android.sdk.health.data.request.LocalTimeFilter
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -105,14 +106,19 @@ class SamsungHealthRepository(context: Context) {
         return samples.maxByOrNull { it.startTime }?.oxygenSaturation
     }
 
-    /** Sleep sessions span the previous night, so look back 48h to always catch the last one. */
+    /** Sleep sessions span the previous night, so look back 48h to always catch the last one.
+     *  Samsung Health logs naps as their own SLEEP entries with no field to tell them apart
+     *  from a real night's sleep, so picking the most *recent* entry means an afternoon nap
+     *  overwrites last night's real reading. Picking the *longest* one instead is a simple,
+     *  reliable proxy — a nap essentially never outlasts an actual night of sleep. */
     private suspend fun latestSleep(): Pair<Long, Int?>? {
         val since = Instant.now().minus(48, ChronoUnit.HOURS)
         val request = DataTypes.SLEEP.readDataRequestBuilder
             .setInstantTimeFilter(InstantTimeFilter.since(since))
             .build()
 
-        val point = store.readData(request).dataList.maxByOrNull { it.endTime ?: Instant.MIN } ?: return null
+        val point = store.readData(request).dataList
+            .maxByOrNull { it.valueOrNull(DataType.SleepType.DURATION) ?: Duration.ZERO } ?: return null
         val duration = point.valueOrNull(DataType.SleepType.DURATION) ?: return null
         val score = point.valueOrNull(DataType.SleepType.SLEEP_SCORE)
         return duration.toMinutes() to score
