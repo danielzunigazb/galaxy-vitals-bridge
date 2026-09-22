@@ -117,11 +117,14 @@ class SamsungHealthRepository(context: Context) {
             .setInstantTimeFilter(InstantTimeFilter.since(since))
             .build()
 
-        val point = store.readData(request).dataList
-            .maxByOrNull { it.valueOrNull(DataType.SleepType.DURATION) ?: Duration.ZERO } ?: return null
-        val duration = point.valueOrNull(DataType.SleepType.DURATION) ?: return null
-        val score = point.valueOrNull(DataType.SleepType.SLEEP_SCORE)
-        return duration.toMinutes() to score
+        val samples = store.readData(request).dataList.map {
+            SleepSample(
+                durationMinutes = (it.valueOrNull(DataType.SleepType.DURATION) ?: Duration.ZERO).toMinutes(),
+                score = it.valueOrNull(DataType.SleepType.SLEEP_SCORE),
+            )
+        }
+        val longest = pickLongestSleep(samples) ?: return null
+        return longest.durationMinutes to longest.score
     }
 
     private suspend fun totalStepsSince(since: LocalDateTime): Long {
@@ -164,4 +167,14 @@ class SamsungHealthRepository(context: Context) {
 
     private fun <T> HealthDataPoint.valueOrNull(field: Field<T>): T? =
         runCatching { getValue(field) }.getOrNull()
+
+    companion object {
+        /** Picks the longest session out of a set of SLEEP entries — see [latestSleep]
+         *  for why "longest" beats "most recent" here. Pure function, no SDK types, so
+         *  it's unit-testable on its own. */
+        fun pickLongestSleep(samples: List<SleepSample>): SleepSample? =
+            samples.maxByOrNull { it.durationMinutes }
+    }
 }
+
+data class SleepSample(val durationMinutes: Long, val score: Int?)

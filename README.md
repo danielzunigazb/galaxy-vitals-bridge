@@ -165,7 +165,27 @@ solo aparece si Spotify está conectado (ver abajo) — si no, se omite entero.
   trae Android Studio). Ya está mitigado con `kotlin.incremental=false` en
   `gradle.properties`.
 - Si el proyecto vive dentro de una carpeta sincronizada por OneDrive/Drive/
-  Dropbox y Gradle falla con `Unable to delete directory` o
-  `AccessDeniedException` dentro de `app/build`: es el sincronizador
-  compitiendo por los archivos con Gradle, no un bug del proyecto. Pausá la
-  sincronización mientras compilás, o movés el proyecto fuera de esa carpeta.
+  Dropbox, `build.gradle.kts` ya redirige todos los `buildDir` (root y
+  subproyectos) a `%LOCALAPPDATA%/gradle-builds/galaxy-vitals-bridge`, fuera
+  de la carpeta sincronizada — el `Unable to delete directory` /
+  `AccessDeniedException` que daba antes era el sincronizador compitiendo por
+  los archivos de `app/build` con Gradle, no un bug del proyecto.
+
+## Tests
+
+`app/src/test/` — lógica pura, sin emulador ni Robolectric (corre en la JVM
+del host):
+
+- `LocationZoneRepositoryTest` — clasificación de zona vía Haversine
+  (radio, prioridad de zona, casos límite).
+- `SamsungHealthRepositoryTest` — que una siesta nunca pise el sueño real
+  (el bug que se reportó en producción).
+- `GitHubPublisherTest` — forma del JSON publicado (nulls explícitos,
+  `now_playing` omitido si Spotify no está conectado, nunca se cuela un
+  lat/lng).
+- `VitalsWidgetProviderTest` — el widget se marca `⚠ desactualizado` a
+  partir de 3 syncs periódicos perdidos (45 min).
+
+```bash
+./gradlew :app:testDebugUnitTest
+```

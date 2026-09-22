@@ -63,4 +63,10 @@ dependencies {
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+
+    // Unit tests (src/test) run on the host JVM, not a device/emulator — org.json
+    // is normally just an Android stub there (throws on every call), so pull in
+    // the real implementation for tests that build JSONObjects (GitHubPublisher).
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20231013")
 }

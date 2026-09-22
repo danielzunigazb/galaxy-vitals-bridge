@@ -6,9 +6,11 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.widget.RemoteViews
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -35,6 +37,11 @@ class VitalsWidgetProvider : AppWidgetProvider() {
         private const val ACTION_REFRESH = "com.danzuniga.vitalsbridge.WIDGET_REFRESH"
         private val TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.systemDefault())
 
+        // 3x the 15-minute sync period: past this, a single missed run
+        // wouldn't explain it — something's actually stuck (background
+        // throttling, revoked permission, no connectivity).
+        val STALE_AFTER: Duration = Duration.ofMinutes(45)
+
         fun updateAllWidgets(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
             val ids = manager.getAppWidgetIds(ComponentName(context, VitalsWidgetProvider::class.java))
@@ -48,7 +55,10 @@ class VitalsWidgetProvider : AppWidgetProvider() {
             views.setTextViewText(R.id.widget_heart, "♥ ${state.heartRate ?: "--"} bpm")
             views.setTextViewText(R.id.widget_steps, "👟 ${state.steps ?: "--"} pasos")
             views.setTextViewText(R.id.widget_zone, "📍 ${zoneLabel(state.zone)}")
-            views.setTextViewText(R.id.widget_updated, formatUpdatedAt(state.updatedAt))
+
+            val stale = isStale(state.updatedAt)
+            views.setTextViewText(R.id.widget_updated, formatUpdatedAt(state.updatedAt, stale))
+            views.setTextColor(R.id.widget_updated, if (stale) Color.parseColor("#ff2d78") else Color.parseColor("#7a7591"))
 
             val refreshIntent = Intent(context, VitalsWidgetProvider::class.java).apply { action = ACTION_REFRESH }
             val pendingIntent = PendingIntent.getBroadcast(
@@ -67,9 +77,17 @@ class VitalsWidgetProvider : AppWidgetProvider() {
             else -> "?"
         }
 
-        private fun formatUpdatedAt(iso: String?): String {
+        fun formatUpdatedAt(iso: String?, stale: Boolean): String {
             if (iso == null) return "sin datos todavía"
-            return runCatching { "sync ${TIME_FORMAT.format(Instant.parse(iso))}" }.getOrDefault("sin datos todavía")
+            val time = runCatching { TIME_FORMAT.format(Instant.parse(iso)) }.getOrNull() ?: return "sin datos todavía"
+            return if (stale) "⚠ desactualizado — último sync $time" else "sync $time"
+        }
+
+        /** True once [iso] is older than [STALE_AFTER], or unparseable/missing
+         *  entirely — both mean the widget can't vouch for what it's showing. */
+        fun isStale(iso: String?, now: Instant = Instant.now()): Boolean {
+            val updatedAt = iso?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: return true
+            return Duration.between(updatedAt, now) > STALE_AFTER
         }
     }
 }
