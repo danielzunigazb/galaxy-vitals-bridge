@@ -7,6 +7,10 @@ SDK, no Health Connect) y los publica en
 schema base que usa el script de BLE del portfolio (`sync_vitals.py`), así
 que ambas fuentes son intercambiables.
 
+<video src="https://github.com/danielzunigazb/galaxy-vitals-bridge/releases/download/showcase-v1/GalaxyVitalsShowcase.mp4" controls width="100%"></video>
+
+*(si el video no se reproduce inline, [descargalo acá](https://github.com/danielzunigazb/galaxy-vitals-bridge/releases/download/showcase-v1/GalaxyVitalsShowcase.mp4))*
+
 ## Por qué Samsung Health Data SDK y no Health Connect
 
 La primera versión leía de Health Connect. En la práctica, en un teléfono
