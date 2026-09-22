@@ -3,13 +3,12 @@
 App Android mínima: lee heart rate, SpO2, pasos, pisos subidos, sueño y el
 último ejercicio directo de **Samsung Health** (vía el Samsung Health Data
 SDK, no Health Connect) y los publica en
-[danzuniga.xyz/status](https://danzuniga.xyz/status.html) — mismo endpoint y
+[danzuniga.xyz/status](https://danzuniga.xyz/status/) — mismo endpoint y
 schema base que usa el script de BLE del portfolio (`sync_vitals.py`), así
 que ambas fuentes son intercambiables.
 
-<video src="https://github.com/danielzunigazb/galaxy-vitals-bridge/releases/download/showcase-v1/GalaxyVitalsShowcase.mp4" controls width="100%"></video>
-
-*(si el video no se reproduce inline, [descargalo acá](https://github.com/danielzunigazb/galaxy-vitals-bridge/releases/download/showcase-v1/GalaxyVitalsShowcase.mp4))*
+[![Video de presentación](docs/showcase-thumb.jpg)](https://github.com/danielzunigazb/galaxy-vitals-bridge/releases/download/showcase-v1/GalaxyVitalsShowcase.mp4)
+<p><sub>▶ <a href="https://github.com/danielzunigazb/galaxy-vitals-bridge/releases/download/showcase-v1/GalaxyVitalsShowcase.mp4">Video de presentación</a> — GitHub no reproduce mp4 de releases inline en el README, así que el link abre/descarga el video directo.</sub></p>
 
 ## Por qué Samsung Health Data SDK y no Health Connect
 
